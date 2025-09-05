@@ -3,12 +3,13 @@ const fetch = require("node-fetch");
 exports.handler = async function () {
   const query = `
     query {
-      Page(perPage: 3) {
+      Page(perPage: 10) {   # grab more so we can filter down
         activities(userId: 144919, sort: ID_DESC) {
           ... on ListActivity {
             status
             progress
             media {
+              type       # 👈 anime or manga
               title {
                 romaji
               }
@@ -39,27 +40,31 @@ exports.handler = async function () {
       return {
         statusCode: 500,
         headers: {
-          "Access-Control-Allow-Origin": "*",   // 👈 allow all origins
+          "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Headers": "Content-Type"
         },
         body: JSON.stringify({ error: "No data from AniList" })
       };
     }
 
-    const activities = data.data.Page.activities.map(act => ({
-      title: act.media.title.romaji,
-      cover: act.media.coverImage.large,
-      status: act.status,
-      progress: act.progress
-    }));
+    // ✅ Filter only manga
+    const mangaActivities = data.data.Page.activities
+      .filter(act => act.media && act.media.type === "MANGA")
+      .slice(0, 3) // only keep 3 most recent manga
+      .map(act => ({
+        title: act.media.title.romaji,
+        cover: act.media.coverImage.large,
+        status: act.status,
+        progress: act.progress
+      }));
 
     return {
       statusCode: 200,
       headers: {
-        "Access-Control-Allow-Origin": "*",   // 👈 add CORS here too
+        "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({ activities })
+      body: JSON.stringify({ activities: mangaActivities })
     };
   } catch (err) {
     return {
