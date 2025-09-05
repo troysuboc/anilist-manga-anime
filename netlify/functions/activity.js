@@ -1,26 +1,27 @@
 const fetch = require("node-fetch");
 
 exports.handler = async function () {
-const query = `
-  query {
-    Page(perPage: 5) {
-      activities(userId: 144919, sort: ID_DESC) {
-        ... on ListActivity {
-          status
-          progress
-          media {
-            title {
-              romaji
-            }
-            coverImage {
-              large
+  const query = `
+    query {
+      Page(perPage: 5) {
+        activities(userId: 144919, sort: ID_DESC) {
+          ... on ListActivity {
+            status
+            progress
+            media {
+              type        # 👈 include type so we can filter manga
+              title {
+                romaji
+              }
+              coverImage {
+                large
+              }
             }
           }
         }
       }
     }
-  }
-`;
+  `;
 
   try {
     const response = await fetch("https://graphql.anilist.co", {
@@ -46,10 +47,10 @@ const query = `
       };
     }
 
-    // ✅ Filter only manga
+    // ✅ Filter only manga + keep 5 most recent
     const mangaActivities = data.data.Page.activities
       .filter(act => act.media && act.media.type === "MANGA")
-      .slice(0, 3) // only keep 3 most recent manga
+      .slice(0, 5)
       .map(act => ({
         title: act.media.title.romaji,
         cover: act.media.coverImage.large,
