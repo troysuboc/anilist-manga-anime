@@ -1,27 +1,26 @@
 const fetch = require("node-fetch");
 
 exports.handler = async function () {
-  const query = `
-    query {
-      Page(perPage: 10) {   # grab more so we can filter down
-        activities(userId: 144919, sort: ID_DESC) {
-          ... on ListActivity {
-            status
-            progress
-            media {
-              type       # 👈 anime or manga
-              title {
-                romaji
-              }
-              coverImage {
-                large
-              }
+const query = `
+  query {
+    Page(perPage: 5) {
+      activities(userId: 144919, sort: ID_DESC) {
+        ... on ListActivity {
+          status
+          progress
+          media {
+            title {
+              romaji
+            }
+            coverImage {
+              large
             }
           }
         }
       }
     }
-  `;
+  }
+`;
 
   try {
     const response = await fetch("https://graphql.anilist.co", {
