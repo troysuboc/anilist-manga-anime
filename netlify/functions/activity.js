@@ -36,7 +36,14 @@ exports.handler = async function () {
     const data = await response.json();
 
     if (!data.data) {
-      return { statusCode: 500, body: JSON.stringify({ error: "No data from AniList" }) };
+      return {
+        statusCode: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",   // 👈 allow all origins
+          "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: JSON.stringify({ error: "No data from AniList" })
+      };
     }
 
     const activities = data.data.Page.activities.map(act => ({
@@ -48,11 +55,19 @@ exports.handler = async function () {
 
     return {
       statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",   // 👈 add CORS here too
+        "Access-Control-Allow-Headers": "Content-Type"
+      },
       body: JSON.stringify({ activities })
     };
   } catch (err) {
     return {
       statusCode: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type"
+      },
       body: JSON.stringify({ error: err.message })
     };
   }
