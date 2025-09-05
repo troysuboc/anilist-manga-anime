@@ -3,13 +3,13 @@ const fetch = require("node-fetch");
 exports.handler = async function () {
   const query = `
     query {
-      Page(perPage: 5) {
+      Page(perPage: 15) {   # 👈 fetch more to ensure enough manga
         activities(userId: 144919, sort: ID_DESC) {
           ... on ListActivity {
             status
             progress
             media {
-              type        # 👈 include type so we can filter manga
+              type
               title {
                 romaji
               }
@@ -47,7 +47,7 @@ exports.handler = async function () {
       };
     }
 
-    // ✅ Filter only manga + keep 5 most recent
+    // ✅ Filter only manga + take 5 most recent
     const mangaActivities = data.data.Page.activities
       .filter(act => act.media && act.media.type === "MANGA")
       .slice(0, 5)
