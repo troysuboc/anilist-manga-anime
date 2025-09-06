@@ -34,14 +34,7 @@ exports.handler = async function () {
     const data = await response.json();
 
     if (!data.data) {
-      return {
-        statusCode: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": "Content-Type"
-        },
-        body: JSON.stringify({ error: "No data from AniList" })
-      };
+      throw new Error("No data from AniList");
     }
 
     const animeStats = data.data.Viewer.statistics.anime;
@@ -55,13 +48,22 @@ exports.handler = async function () {
       body: JSON.stringify(animeStats)
     };
   } catch (err) {
+    console.error("AniList API error:", err.message);
+
+    // ✅ Fallback object so frontend still has something
     return {
-      statusCode: 500,
+      statusCode: 200, // still return 200, not 500
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({ error: err.message })
+      body: JSON.stringify({
+        count: "N/A",
+        episodesWatched: "N/A",
+        meanScore: "N/A",
+        minutesWatched: "N/A",
+        error: "AniList unavailable"
+      })
     };
   }
 };
