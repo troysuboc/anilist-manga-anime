@@ -1,5 +1,7 @@
 const fetch = require("node-fetch");
 
+let lastGoodData = null; // stays in memory while function is warm
+
 exports.handler = async function () {
   const query = `
     query {
@@ -32,12 +34,10 @@ exports.handler = async function () {
     });
 
     const data = await response.json();
-
-    if (!data.data) {
-      throw new Error("No data from AniList");
-    }
+    if (!data.data) throw new Error("No data from AniList");
 
     const animeStats = data.data.Viewer.statistics.anime;
+    lastGoodData = animeStats; // ✅ store it for next time
 
     return {
       statusCode: 200,
@@ -50,9 +50,24 @@ exports.handler = async function () {
   } catch (err) {
     console.error("AniList API error:", err.message);
 
-    // ✅ Fallback object so frontend still has something
+    if (lastGoodData) {
+      // ✅ Serve cached data if available
+      return {
+        statusCode: 200,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: JSON.stringify({
+          ...lastGoodData,
+          cached: true, // add flag so frontend knows it’s cached
+        })
+      };
+    }
+
+    // ❌ Nothing cached yet, return fallback
     return {
-      statusCode: 200, // still return 200, not 500
+      statusCode: 200,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
