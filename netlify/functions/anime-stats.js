@@ -3,7 +3,7 @@ const fetch = require("node-fetch");
 let lastGoodData = null;
 
 exports.handler = async function () {
-  // Query to get viewer id + stats
+  // Query to get viewer id + stats (anime only)
   const statsQuery = `
     query {
       Viewer {
@@ -47,12 +47,13 @@ exports.handler = async function () {
     // Step 2: fetch activities for that user id
     const activitiesQuery = `
       query {
-        Page(perPage: 5) {
+        Page(perPage: 10) {
           activities(userId: ${viewerId}, sort: ID_DESC) {
             ... on ListActivity {
               status
               progress
               media {
+                type
                 title {
                   romaji
                   english
@@ -68,14 +69,18 @@ exports.handler = async function () {
     `;
 
     const activitiesRes = await runQuery(activitiesQuery);
-    const activities = (activitiesRes.data?.Page?.activities || []).map(act => ({
-      title: act.media?.title?.english || act.media?.title?.romaji || "Untitled",
-      cover: act.media?.coverImage?.medium || "",
-      status: act.status || "",
-      progress: act.progress || ""
-    }));
 
-    // Step 3: return combined result
+    // Step 3: filter only anime activities
+    const activities = (activitiesRes.data?.Page?.activities || [])
+      .filter(act => act.media?.type === "ANIME")
+      .map(act => ({
+        title: act.media?.title?.english || act.media?.title?.romaji || "Untitled",
+        cover: act.media?.coverImage?.medium || "",
+        status: act.status || "",
+        progress: act.progress || ""
+      }));
+
+    // Step 4: return combined result
     const result = { stats: animeStats, activities };
     lastGoodData = result;
 
