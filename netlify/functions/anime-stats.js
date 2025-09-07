@@ -3,9 +3,11 @@ const fetch = require("node-fetch");
 let lastGoodData = null;
 
 exports.handler = async function () {
+  // Query to get viewer id + stats
   const statsQuery = `
     query {
       Viewer {
+        id
         statistics {
           anime {
             count
@@ -15,28 +17,6 @@ exports.handler = async function () {
             statuses {
               status
               count
-            }
-          }
-        }
-      }
-    }
-  `;
-
-  const activitiesQuery = `
-    query {
-      Page(perPage: 5) {
-        activities(mediaType: ANIME, sort: ID_DESC) {
-          ... on ListActivity {
-            status
-            progress
-            media {
-              title {
-                romaji
-                english
-              }
-              coverImage {
-                medium
-              }
             }
           }
         }
@@ -57,16 +37,37 @@ exports.handler = async function () {
   }
 
   try {
-    const [statsRes, activitiesRes] = await Promise.all([
-      runQuery(statsQuery),
-      runQuery(activitiesQuery)
-    ]);
+    // Step 1: get stats + viewer id
+    const statsRes = await runQuery(statsQuery);
+    if (!statsRes.data?.Viewer) throw new Error("No Viewer data from AniList");
 
-    if (!statsRes.data && !activitiesRes.data) {
-      throw new Error("No data from AniList");
-    }
+    const viewerId = statsRes.data.Viewer.id;
+    const animeStats = statsRes.data.Viewer.statistics?.anime || {};
 
-    const animeStats = statsRes.data?.Viewer?.statistics?.anime || {};
+    // Step 2: fetch activities for that user id
+    const activitiesQuery = `
+      query {
+        Page(perPage: 5) {
+          activities(userId: ${viewerId}, sort: ID_DESC) {
+            ... on ListActivity {
+              status
+              progress
+              media {
+                title {
+                  romaji
+                  english
+                }
+                coverImage {
+                  medium
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const activitiesRes = await runQuery(activitiesQuery);
     const activities = (activitiesRes.data?.Page?.activities || []).map(act => ({
       title: act.media?.title?.english || act.media?.title?.romaji || "Untitled",
       cover: act.media?.coverImage?.medium || "",
@@ -74,6 +75,7 @@ exports.handler = async function () {
       progress: act.progress || ""
     }));
 
+    // Step 3: return combined result
     const result = { stats: animeStats, activities };
     lastGoodData = result;
 
@@ -87,6 +89,7 @@ exports.handler = async function () {
     };
   } catch (err) {
     console.error("AniList API error:", err.message);
+
     if (lastGoodData) {
       return {
         statusCode: 200,
@@ -97,6 +100,7 @@ exports.handler = async function () {
         body: JSON.stringify({ ...lastGoodData, cached: true })
       };
     }
+
     return {
       statusCode: 200,
       headers: {
