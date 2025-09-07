@@ -3,7 +3,7 @@ const fetch = require("node-fetch");
 let lastGoodData = null;
 
 exports.handler = async function () {
-  const query = `
+  const statsQuery = `
     query {
       Viewer {
         statistics {
@@ -19,12 +19,16 @@ exports.handler = async function () {
           }
         }
       }
-      Page(perPage: 10) {
+    }
+  `;
+
+  const activitiesQuery = `
+    query {
+      Page(perPage: 5) {
         activities(mediaType: ANIME, sort: ID_DESC) {
           ... on ListActivity {
             status
             progress
-            createdAt
             media {
               title {
                 romaji
@@ -40,8 +44,8 @@ exports.handler = async function () {
     }
   `;
 
-  try {
-    const response = await fetch("https://graphql.anilist.co", {
+  async function runQuery(query) {
+    const res = await fetch("https://graphql.anilist.co", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -49,12 +53,21 @@ exports.handler = async function () {
       },
       body: JSON.stringify({ query })
     });
+    return res.json();
+  }
 
-    const data = await response.json();
-    if (!data.data) throw new Error("No data from AniList");
+  try {
+    const [statsRes, activitiesRes] = await Promise.all([
+      runQuery(statsQuery),
+      runQuery(activitiesQuery)
+    ]);
 
-    const animeStats = data.data.Viewer.statistics.anime;
-    const activities = (data.data.Page?.activities || []).map(act => ({
+    if (!statsRes.data && !activitiesRes.data) {
+      throw new Error("No data from AniList");
+    }
+
+    const animeStats = statsRes.data?.Viewer?.statistics?.anime || {};
+    const activities = (activitiesRes.data?.Page?.activities || []).map(act => ({
       title: act.media?.title?.english || act.media?.title?.romaji || "Untitled",
       cover: act.media?.coverImage?.medium || "",
       status: act.status || "",
